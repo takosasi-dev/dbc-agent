@@ -19,6 +19,15 @@ PC 側(GUI)は別リポジトリ: [svcscope-gui](https://github.com/takosasi-dev
   「待たされた時間の割合」として出す。HDD の機械では、CPU 使用率が低いのに
   遅い状況がこれで見える。
 
+あわせて、放っておくと気づかないものを `/api/v1/alerts` に集める。
+
+| 元 | 拾うもの |
+| --- | --- |
+| journald | エラー以上のログを unit ごとに集計(直近30分)。どのサービスが鳴いているか |
+| SMART | 総合判定、温度、再配置済み・保留セクタ。HDD の機械で効く |
+| Arch Security Tracker | 未修正の脆弱性のうち、**入っているパッケージに当たるものだけ** |
+| Arch News | 手動の対応が要る告知(`manual intervention` など)を warning に上げる |
+
 ## 動作環境
 
 | | |
@@ -27,10 +36,14 @@ PC 側(GUI)は別リポジトリ: [svcscope-gui](https://github.com/takosasi-dev
 | カーネル | cgroup v2 (unified)。PSI 有効(`CONFIG_PSI=y`) |
 | Python | 3.11 以降(`tomllib` を使うため) |
 | 依存ライブラリ | **無し**(標準ライブラリだけ) |
-| 任意 | `smartmontools`(SMART を見る場合) |
+| 任意 | `smartmontools`(SMART)、`pacman`(脆弱性の照合)、`journalctl`(ログの集計) |
 
 cgroup v1、PSI 無効、zram 無し、smartctl 無しの環境でも起動する。
 その項目が `unsupported` として返るだけで、他の項目は通常どおり取れる。
+
+**外部 API は既定では一切叩かない。** 設定の `external_allow` に書いた
+URL だけが対象で、空のままなら脆弱性とニュースの collector は
+`unsupported` になる。取得は6時間おき、タイムアウト10秒。
 
 常駐メモリの目標は 80MB 以下、アイドル時の CPU は 2% 以下
 (Python プロトタイプの目標。実機で測って見直す)。
@@ -108,10 +121,17 @@ python -m svcscope.cli --url http://127.0.0.1:18765 watch
 開発は PC 側で行う。サーバ上ではビルドしない。
 
 ```sh
-python tests/run_all.py            # 全部
+python tests/run_all.py            # 全部(どの OS でも動く)
 python tests/test_collectors.py    # /proc のパーサ
 python tests/test_contract.py      # API が仕様どおりか(jsonschema が要る)
+
+python tests/check_live.py         # 本物の /proc に当てる。Linux 以外では何もしない
+python tests/check_external.py     # 外部 API を実際に叩く
 ```
+
+後の2つは `run_all.py` に入れていない。実環境とネットワークに依存するので、
+落ちたときに自分のコードのせいか相手のせいか分からなくなるため。
+`check_live.py` は CI(ubuntu-latest)が毎回通す。
 
 Linux の無い機械でも API を立てられる。`/proc` の写しを読む fixture モード。
 
@@ -132,7 +152,7 @@ fixture モードは写しが2枚で一巡するため、差分で出す項目(C
 
 | ファイル | 役割 |
 | --- | --- |
-| `svcscope/collectors.py` | `/proc`・`/sys`・cgroup のパーサ。collector を足すならここ |
+| `svcscope/collectors.py` | `/proc`・`/sys`・cgroup・journald・外部 API。collector を足すならここ |
 | `svcscope/sampler.py` | 収集ループとリングバッファ。スレッドは1本だけ |
 | `svcscope/server.py` | HTTP API |
 | `svcscope/auth.py` | トークンの照合(定数時間比較、連続失敗で締め出し) |

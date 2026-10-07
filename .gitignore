@@ -12,8 +12,11 @@ token.sha256
 *.token
 config.toml
 
-# tests/make_fixtures.py が作る模擬データ。生成物なので持たない
+# tests/make_fixtures.py が作る模擬データ。生成物なので持たない。
+# news.xml は日付を生成時刻からの相対で作るため、commit すると
+# 時間が経ってから「30日より古い」側に落ちてテストが壊れる
 tests/fixtures/arch/
+tests/fixtures/external/
 
 # 実機から取った /proc の写し。マウント先のパスやサービス名が入るので、
 # 中身を確認してから `git add -f tests/fixtures/real` で明示的に入れる

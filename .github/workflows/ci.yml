@@ -1,0 +1,68 @@
+name: ci
+
+# 開発機が Windows なので、本物の /proc・/sys に当てられるのはここだけ。
+# fixture のテストは「写しを正しく読めるか」しか見ないため、
+# check_live.py で実際のカーネルの出す形も確かめる。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 は tomllib が入った版(下限)。3.13 は Arch が今配っている版に近い
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # 実行時の依存は無し。契約テストのスキーマ検証にだけ使う
+      - run: pip install jsonschema
+
+      - name: 環境の下見
+        run: |
+          echo "cgroup v2: $([ -e /sys/fs/cgroup/cgroup.controllers ] && echo yes || echo no)"
+          echo "PSI: $([ -d /proc/pressure ] && echo yes || echo no)"
+          echo "journalctl: $(command -v journalctl || echo none)"
+          echo "smartctl: $(command -v smartctl || echo none)"
+
+      - name: fixture と契約のテスト
+        run: python tests/run_all.py
+
+      - name: 本物の /proc で collector を回す
+        run: python tests/check_live.py
+
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: シェルスクリプトの構文
+        run: |
+          for f in packaging/*.sh; do
+            echo "-- $f"
+            sh -n "$f"
+          done
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -s sh packaging/*.sh
+
+      - name: systemd unit の構文
+        run: |
+          for f in packaging/*.service packaging/*.timer; do
+            echo "-- $f"
+            systemd-analyze verify "$f" 2>&1 | grep -v 'Unit .* not found' || true
+          done

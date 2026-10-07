@@ -32,7 +32,7 @@ restrict,port-forwarding,permitopen="127.0.0.1:8765",command="/usr/bin/nologin" 
 
 ## 2. PC 側の ~/.ssh/config
 
-Windows では `C:\Users\<自分>\.ssh\config`。使う ssh は Windows 標準の
+Windows では `%USERPROFILE%\.ssh\config`。使う ssh は Windows 標準の
 `C:\Windows\System32\OpenSSH\ssh.exe` で、WSL の中の ssh ではない。
 
 ```

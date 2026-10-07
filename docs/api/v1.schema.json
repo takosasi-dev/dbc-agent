@@ -145,15 +145,21 @@
     "unit_list": { "type": "array", "items": { "$ref": "#/$defs/unit" } },
 
     "alert": {
+      "description": "異常1件。source ごとの collector が作り、/api/v1/alerts が重い順につなげて返す",
       "type": "object",
       "required": ["source", "severity", "message", "ts"],
       "properties": {
         "ts": { "$ref": "#/$defs/ts" },
-        "source": { "enum": ["journal", "smart", "security", "eol"] },
+        "source": {
+          "description": "journal = journald のエラー / smart = ディスクの健康状態 / security = Arch Security Tracker / news = Arch のニュース / eol = サポート終了 (eol は未実装)",
+          "enum": ["journal", "smart", "security", "news", "eol"]
+        },
         "severity": { "enum": ["info", "warning", "error", "critical"] },
         "message": { "type": "string" },
-        "unit": { "type": "string" },
-        "count": { "type": "integer", "minimum": 0 }
+        "unit": { "type": "string", "description": "systemd unit 名、またはデバイス名" },
+        "package": { "type": "string", "description": "source=security のとき、影響を受ける入っているパッケージ" },
+        "url": { "type": "string", "description": "詳細のあるページ" },
+        "count": { "type": "integer", "minimum": 0, "description": "件数(journal なら窓の中のログ数、security なら CVE の数)" }
       }
     },
 

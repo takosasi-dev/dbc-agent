@@ -12,6 +12,8 @@ t0 と t1 は 2 秒差の2時点。CPU 使用率・I/O・ネットワーク・un
 差分でしか出せないため、1枚では値が出ない。
 """
 
+import json
+import time
 from pathlib import Path
 
 OUT = Path(__file__).parent / "fixtures" / "arch"
@@ -34,6 +36,110 @@ SERVICES = {
     "systemd-journald.service": (9_876_543, 25_165_824),
     "NetworkManager.service": (2_345_678, 16_777_216),
 }
+
+
+# --- 異常検知の collector 用 ---
+#
+# journalctl の出力・SMART の写し・入っているパッケージの一覧・外部 API の応答。
+# 実機のものは packaging/capture-fixtures.sh で取れるが、形は同じ。
+
+# journalctl -p err -o json --no-pager の1行1件。PRIORITY 3 = err、2 = crit
+JOURNAL_LINES = [
+    {"__REALTIME_TIMESTAMP": "1790000000000000", "PRIORITY": "3",
+     "_SYSTEMD_UNIT": "nginx.service",
+     "MESSAGE": "connect() failed (111: Connection refused)"},
+    {"__REALTIME_TIMESTAMP": "1790000010000000", "PRIORITY": "3",
+     "_SYSTEMD_UNIT": "nginx.service", "MESSAGE": "upstream timed out"},
+    {"__REALTIME_TIMESTAMP": "1790000020000000", "PRIORITY": "2",
+     "_SYSTEMD_UNIT": "nginx.service",
+     "MESSAGE": "worker process exited on signal 11"},
+    {"__REALTIME_TIMESTAMP": "1790000005000000", "PRIORITY": "3",
+     "_SYSTEMD_UNIT": "cronie.service", "MESSAGE": "(root) FAILED to open PAM"},
+    # unit 名が無い行。SYSLOG_IDENTIFIER へ落ちることを確かめる
+    {"__REALTIME_TIMESTAMP": "1790000006000000", "PRIORITY": "3",
+     "SYSLOG_IDENTIFIER": "kernel", "MESSAGE": "ata1.00: failed command: READ DMA"},
+    # UTF-8 でないログはバイトの配列で来る
+    {"__REALTIME_TIMESTAMP": "1790000007000000", "PRIORITY": "3",
+     "_SYSTEMD_UNIT": "odd.service", "MESSAGE": [104, 105, 255]},
+]
+
+# root の timer(packaging/svcscope-smart.sh)が /run に書く形。
+# 温度 58℃(しきい値超え)と再配置済みセクタ 8 件で、警告が2本出る想定
+SMART = {
+    "ts": 1790000000000,
+    "devices": {
+        "/dev/sda": {
+            "smart_status": {"passed": True},
+            "temperature": {"current": 58},
+            "ata_smart_attributes": {"table": [
+                {"id": 5, "name": "Reallocated_Sector_Ct", "raw": {"value": 8}},
+                {"id": 197, "name": "Current_Pending_Sector", "raw": {"value": 0}},
+                {"id": 9, "name": "Power_On_Hours", "raw": {"value": 41234}},
+            ]},
+        },
+    },
+}
+
+# pacman -Qq の出力
+PACMAN_Q = ["bash", "coreutils", "curl", "linux", "openssl", "python", "vim", "nginx"]
+
+# security.archlinux.org/issues/all.json を小さくしたもの。
+# 出るのは「Vulnerable かつ入っている」2件だけ
+AVG = [
+    {"name": "AVG-1001", "packages": ["coreutils"], "status": "Vulnerable",
+     "severity": "Critical", "type": "arbitrary code execution",
+     "affected": "9.4-1", "fixed": "9.5-1",
+     "issues": ["CVE-2026-0001", "CVE-2026-0002"], "advisories": []},
+    {"name": "AVG-1002", "packages": ["vim"], "status": "Vulnerable",
+     "severity": "Medium", "type": "denial of service",
+     "affected": "9.1-1", "fixed": None,
+     "issues": ["CVE-2026-0003"], "advisories": []},
+    # 直っているので出さない
+    {"name": "AVG-1003", "packages": ["openssl"], "status": "Fixed",
+     "severity": "High", "type": "information disclosure",
+     "affected": "3.0-1", "fixed": "3.1-1",
+     "issues": ["CVE-2026-0004"], "advisories": []},
+    # 入っていないパッケージなので出さない
+    {"name": "AVG-1004", "packages": ["audacity"], "status": "Vulnerable",
+     "severity": "High", "type": "privilege escalation",
+     "affected": "3.4-1", "fixed": "3.5-1",
+     "issues": ["CVE-2026-0005"], "advisories": []},
+]
+
+# archlinux.org/feeds/news/ を小さくしたもの。日付は生成時からの相対で入れる
+NEWS_ITEMS = [
+    ("Manual intervention required for the /usr merge", 2),
+    ("Now using Zstandard instead of xz for package compression", 10),
+    # 窓(30日)の外なので出さない
+    ("Very old news", 400),
+]
+
+
+def _journal() -> str:
+    return "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in JOURNAL_LINES)
+
+
+def _news() -> str:
+    import email.utils
+
+    items = []
+    for title, days_ago in NEWS_ITEMS:
+        when = email.utils.formatdate(time.time() - days_ago * 86400)
+        items.append(
+            f"<item><title>{title}</title>"
+            f"<link>https://archlinux.org/news/example-{days_ago}/</link>"
+            f"<description>&lt;p&gt;本文の例&lt;/p&gt;</description>"
+            f"<pubDate>{when}</pubDate></item>"
+        )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<rss version="2.0"><channel>'
+        "<title>Arch Linux: Recent news updates</title>"
+        "<link>https://archlinux.org/news/</link>"
+        "<description>例</description>"
+        + "".join(items)
+        + "</channel></rss>\n"
+    )
 
 
 def _stat(step: int) -> str:
@@ -165,11 +271,23 @@ def write(root: Path, step: int) -> None:
     # サービス以外(user.slice など)を拾わないことを確かめるための紛れ込み
     put("sys/fs/cgroup/system.slice/dbus.socket/memory.current", "4096\n")
 
+    # journald / SMART / pacman の写し(異常検知の collector 用)
+    put("journal.json", _journal())
+    put("run/svcscope/smart.json", json.dumps(SMART, ensure_ascii=False, indent=1) + "\n")
+    put("pacman-q.txt", "\n".join(PACMAN_Q) + "\n")
+
 
 def main() -> None:
     for step in (0, 1):
         write(OUT / f"t{step}", step)
-    print(f"作成: {OUT}/t0, {OUT}/t1")
+    # 外部 API の写しは時点に依らないので、写しの外に1組だけ置く
+    ext = OUT.parent / "external"
+    ext.mkdir(parents=True, exist_ok=True)
+    (ext / "avg.json").write_text(
+        json.dumps(AVG, ensure_ascii=False, indent=1) + "\n",
+        encoding="utf-8", newline="\n")
+    (ext / "news.xml").write_text(_news(), encoding="utf-8", newline="\n")
+    print(f"作成: {OUT}/t0, {OUT}/t1, {ext}")
 
 
 if __name__ == "__main__":

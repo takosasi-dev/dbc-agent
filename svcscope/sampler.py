@@ -26,6 +26,11 @@ ERROR_LOG_INTERVAL_S = 60.0
 
 OK, STALE, UNSUPPORTED = "ok", "stale", "unsupported"
 
+# /api/v1/alerts に混ぜる collector。ここに並べた順に見る
+ALERT_SOURCES = ("journal", "smart", "security", "news")
+# 重い順に並べるための番号
+_SEVERITY_ORDER = {"critical": 0, "error": 1, "warning": 2, "info": 3}
+
 
 def now_ms() -> int:
     """API で使う時刻。Unix 時刻のミリ秒(UTC)。"""
@@ -35,7 +40,8 @@ def now_ms() -> int:
 class _Slot:
     """collector 1つ分の状態。最後に取れた値と、その時刻を持つ。"""
 
-    __slots__ = ("c", "value", "at", "due", "unsupported", "error", "logged_at")
+    __slots__ = ("c", "value", "at", "due", "unsupported", "error", "logged_at",
+                 "running")
 
     def __init__(self, c: col.Collector):
         self.c = c
@@ -45,6 +51,8 @@ class _Slot:
         self.unsupported: str | None = None
         self.error: str | None = None
         self.logged_at: float = 0.0
+        # 別スレッドで回す collector が二重に走らないようにする
+        self.running = False
 
 
 def fixture_roots(directory) -> list:
@@ -86,9 +94,10 @@ class Sampler:
         self._next_global = 0.0
         self._next_units = 0.0
 
-        root = self._fixtures[0] if self._fixtures else config.root
         for cls in (classes if classes is not None else col.ALL):
-            c = cls(root)
+            c = cls(config)
+            if self._fixtures:
+                c.root = self._fixtures[0]
             slot = _Slot(c)
             try:
                 c.probe()
@@ -137,19 +146,18 @@ class Sampler:
                 if slot.unsupported is not None or now < slot.due:
                     continue
                 slot.due = now + slot.c.interval
-                try:
-                    slot.value = slot.c.collect(now)
-                    slot.at = now
-                    slot.error = None
-                except col.NotReady:
-                    pass
-                except col.Unsupported as e:
-                    # 動いていた項目が途中で消えることもある(zram の解除など)
-                    slot.unsupported = str(e)
-                    self._log_error(slot, now, "非対応になりました: %s" % e)
-                except Exception as e:  # noqa: BLE001 - 1つの失敗で他を止めない
-                    slot.error = f"{type(e).__name__}: {e}"
-                    self._log_error(slot, now, "収集に失敗: %s" % slot.error)
+                if slot.c.blocking:
+                    # 外に出る collector は応答待ちが長い。ここで待つと
+                    # 2秒間隔の項目が止まるので、別スレッドへ出す
+                    if slot.running:
+                        continue  # 前回がまだ終わっていない
+                    slot.running = True
+                    threading.Thread(
+                        target=self._collect_offline, args=(slot, now),
+                        name=f"collect-{slot.c.name}", daemon=True,
+                    ).start()
+                    continue
+                self._store(slot, *self._attempt(slot, now), now)
 
             if now >= self._next_global:
                 self._next_global = now + GLOBAL_INTERVAL_S
@@ -159,6 +167,44 @@ class Sampler:
                 units = self._slots["units"].value if "units" in self._slots else None
                 if units:
                     self.units_history.append({"ts": now_ms(), **units})
+
+    def _attempt(self, slot: _Slot, now: float) -> tuple[dict | None, str | None, str | None]:
+        """collect を1回試す。(値, 非対応の理由, エラー) を返す。
+
+        ロックを取らない。別スレッドから呼ぶときは、時間のかかる collect を
+        ロックの外で回すため。
+        """
+        try:
+            return slot.c.collect(now), None, None
+        except col.NotReady:
+            return None, None, None
+        except col.Unsupported as e:
+            # 動いていた項目が途中で消えることもある(zram の解除など)
+            return None, str(e), None
+        except Exception as e:  # noqa: BLE001 - 1つの失敗で他を止めない
+            return None, None, f"{type(e).__name__}: {e}"
+
+    def _store(self, slot: _Slot, value, unsupported, error, now: float) -> None:
+        """_attempt の結果を slot に入れる。呼び出し側がロックを持つこと。"""
+        if unsupported is not None:
+            slot.unsupported = unsupported
+            self._log_error(slot, now, "非対応になりました: %s" % unsupported)
+        elif error is not None:
+            slot.error = error
+            self._log_error(slot, now, "収集に失敗: %s" % error)
+        elif value is not None:
+            slot.value = value
+            slot.at = now
+            slot.error = None
+
+    def _collect_offline(self, slot: _Slot, now: float) -> None:
+        """遅い collector を別スレッドで回す。結果が出たらロックを取って入れる。"""
+        try:
+            result = self._attempt(slot, now)
+            with self._lock:
+                self._store(slot, *result, now)
+        finally:
+            slot.running = False
 
     def _log_error(self, slot: _Slot, now: float, msg: str) -> None:
         if now - slot.logged_at < ERROR_LOG_INTERVAL_S:
@@ -219,12 +265,18 @@ class Sampler:
         形だけ先に固めておく。GUI 側を後から直さずに済ませるため。
         """
         now = time.monotonic() if now is None else now
+        alerts: list[dict] = []
+        states = {}
         with self._lock:
-            states = {}
-            for name in ("journal", "smart", "security"):
+            for name in ALERT_SOURCES:
                 slot = self._slots.get(name)
                 states[name] = self._status(slot, now) if slot else UNSUPPORTED
-        return {"ts": now_ms(), "alerts": [], "collectors": states}
+                if slot is not None and slot.value:
+                    alerts.extend(slot.value.get("alerts") or [])
+        # 重いものから、同じ重さなら新しいものから
+        alerts.sort(key=lambda a: (_SEVERITY_ORDER.get(a.get("severity"), 9),
+                                   -(a.get("ts") or 0)))
+        return {"ts": now_ms(), "alerts": alerts, "collectors": states}
 
     def health(self, now: float | None = None) -> dict:
         now = time.monotonic() if now is None else now
@@ -263,8 +315,8 @@ def demo() -> None:
         name = "fake"
         interval = 2.0
 
-        def __init__(self, root=Path("/")):
-            super().__init__(root)
+        def __init__(self, config):
+            super().__init__(config)
             self.calls = 0
 
         def collect(self, now: float) -> dict:
@@ -301,6 +353,41 @@ def demo() -> None:
     assert "collectors" in s.snapshot(4.0)
     assert s.alerts(4.0)["alerts"] == []
     assert s.units(4.0)["units"] == []
+
+    # 遅い collector は別スレッドで回す。tick が待たされないこと、
+    # 結果が後から入ること、前の回が終わる前に二重に走らないこと
+    class Slow(col.Collector):
+        name = "journal"  # alerts に混ざる名前にして、集約も通す
+        interval = 1.0
+        blocking = True
+
+        def __init__(self, config):
+            super().__init__(config)
+            self.started = 0
+
+        def collect(self, now: float) -> dict:
+            self.started += 1
+            time.sleep(0.4)
+            return {"alerts": [{"ts": 1, "source": "journal",
+                                "severity": "warning", "message": "おそい"}]}
+
+    s2 = Sampler(Config(), classes=[Slow])
+    slow = s2._slots["journal"].c
+    began = time.monotonic()
+    s2.tick(time.monotonic())
+    # 0.4 秒かかる collect に tick が付き合っていないこと
+    assert time.monotonic() - began < 0.2, "tick が遅い collector に待たされている"
+    # 終わる前にもう一度期限が来ても、二重には走らせない
+    s2.tick(time.monotonic() + 2.0)
+    assert slow.started == 1, slow.started
+    time.sleep(0.8)
+    got = s2.alerts()["alerts"]
+    assert len(got) == 1 and got[0]["message"] == "おそい", got
+    assert s2.alerts()["collectors"]["journal"] == OK
+    # 1回終われば次は走る
+    s2.tick(time.monotonic() + 4.0)
+    time.sleep(0.8)
+    assert slow.started == 2, slow.started
 
     print("sampler OK")
 

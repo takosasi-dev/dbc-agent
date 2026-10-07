@@ -111,6 +111,12 @@ def test_responses_match_schema() -> None:
         assert snap["collectors"]["disk_usage"] == "unsupported"
         assert "filesystems" not in snap.get("disk", {}), snap["disk"]
 
+        # alerts が空のままだと $defs/alert を検証していないことになる。
+        # fixture には journald と SMART の異常が入っているので必ず出る
+        _, al = a.get("/api/v1/alerts")
+        assert al["alerts"], "alerts が空。alert のスキーマが検証されていない"
+        assert {x["source"] for x in al["alerts"]} == {"journal", "smart"}, al["alerts"]
+
 
 def test_history_since_is_exclusive() -> None:
     with Agent() as a:
