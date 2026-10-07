@@ -11,6 +11,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT))
+
+# 読み込むと標準出力が UTF-8 になる。Windows の既定のコードページでは
+# 日本語を print した時点で落ちるため
+import svcscope  # noqa: E402,F401
 
 # モジュール自身の自己検査。`python -m <名前>` で走る
 SELF_CHECKS = [

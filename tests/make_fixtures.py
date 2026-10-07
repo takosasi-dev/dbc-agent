@@ -13,8 +13,15 @@ t0 と t1 は 2 秒差の2時点。CPU 使用率・I/O・ネットワーク・un
 """
 
 import json
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# 読み込むと標準出力が UTF-8 になる。Windows の既定のコードページでは
+# 日本語を print した時点で落ちるため
+import svcscope  # noqa: E402,F401
 
 OUT = Path(__file__).parent / "fixtures" / "arch"
 
