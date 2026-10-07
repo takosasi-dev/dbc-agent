@@ -13,6 +13,7 @@ t0 と t1 は 2 秒差の2時点。CPU 使用率・I/O・ネットワーク・un
 """
 
 import json
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -21,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 読み込むと標準出力が UTF-8 になる。Windows の既定のコードページでは
 # 日本語を print した時点で落ちるため
-import svcscope  # noqa: E402,F401
+import dbc  # noqa: E402,F401
 
 OUT = Path(__file__).parent / "fixtures" / "arch"
 
@@ -39,7 +40,7 @@ UNIT_CPU_USEC = 2_000          # 2000us / 2000000us = 0.1%
 
 SERVICES = {
     "sshd.service": (1_234_567, 8_388_608),
-    "svcscope.service": (456_789, 41_943_040),
+    "dbc.service": (456_789, 41_943_040),
     "systemd-journald.service": (9_876_543, 25_165_824),
     "NetworkManager.service": (2_345_678, 16_777_216),
 }
@@ -70,7 +71,7 @@ JOURNAL_LINES = [
      "_SYSTEMD_UNIT": "odd.service", "MESSAGE": [104, 105, 255]},
 ]
 
-# root の timer(packaging/svcscope-smart.sh)が /run に書く形。
+# root の timer(packaging/dbc-smart.sh)が /run に書く形。
 # 温度 58℃(しきい値超え)と再配置済みセクタ 8 件で、警告が2本出る想定
 SMART = {
     "ts": 1790000000000,
@@ -280,11 +281,18 @@ def write(root: Path, step: int) -> None:
 
     # journald / SMART / pacman の写し(異常検知の collector 用)
     put("journal.json", _journal())
-    put("run/svcscope/smart.json", json.dumps(SMART, ensure_ascii=False, indent=1) + "\n")
+    put("run/dbc/smart.json", json.dumps(SMART, ensure_ascii=False, indent=1) + "\n")
     put("pacman-q.txt", "\n".join(PACMAN_Q) + "\n")
 
 
 def main() -> None:
+    # 作り直す前に消す。put() は上書きしかしないので、消さないと前回の
+    # 残りが混ざる(プロジェクト名を変えたとき、古い unit 名の写しが
+    # 残っていてテストが落ちた)
+    for stale in (OUT, OUT.parent / "external"):
+        if stale.is_dir():
+            shutil.rmtree(stale)
+
     for step in (0, 1):
         write(OUT / f"t{step}", step)
     # 外部 API の写しは時点に依らないので、写しの外に1組だけ置く

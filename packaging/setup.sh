@@ -6,9 +6,9 @@
 set -eu
 
 REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
-TARGET=/opt/svcscope
+TARGET=/opt/dbc
 UNIT_DIR=/etc/systemd/system
-USER_NAME=svcscope
+USER_NAME=dbc
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "root で実行してください" >&2
@@ -60,7 +60,7 @@ fi
 usermod -aG systemd-journal "$USER_NAME"
 
 install -d -m 0755 "$TARGET"
-install -d -m 0750 /etc/svcscope
+install -d -m 0750 /etc/dbc
 # git で取ったものをそのまま current にする運用(Python プロトタイプ段階)。
 # v0.1 のリリース以降は署名付きの releases/ + シンボリックリンクに移す。
 if [ ! -e "$TARGET/current" ]; then
@@ -69,19 +69,19 @@ if [ ! -e "$TARGET/current" ]; then
 else
   echo "  既にある: $TARGET/current -> $(readlink -f "$TARGET/current")"
 fi
-chmod +x "$REPO_DIR/packaging/svcscope-smart.sh"
+chmod +x "$REPO_DIR/packaging/dbc-smart.sh"
 
 echo "== 設定 =="
-if [ -e /etc/svcscope/config.toml ]; then
-  echo "  既にある: /etc/svcscope/config.toml (上書きしません)"
+if [ -e /etc/dbc/config.toml ]; then
+  echo "  既にある: /etc/dbc/config.toml (上書きしません)"
 else
-  install -m 0640 "$REPO_DIR/packaging/config.example.toml" /etc/svcscope/config.toml
-  chown root:"$USER_NAME" /etc/svcscope/config.toml
-  echo "  作成: /etc/svcscope/config.toml"
+  install -m 0640 "$REPO_DIR/packaging/config.example.toml" /etc/dbc/config.toml
+  chown root:"$USER_NAME" /etc/dbc/config.toml
+  echo "  作成: /etc/dbc/config.toml"
 fi
 
 echo "== systemd =="
-for unit in svcscope.service svcscope-smart.service svcscope-smart.timer; do
+for unit in dbc.service dbc-smart.service dbc-smart.timer; do
   install -m 0644 "$REPO_DIR/packaging/$unit" "$UNIT_DIR/$unit"
   echo "  入れた: $UNIT_DIR/$unit"
 done
@@ -91,11 +91,11 @@ cat <<EOS
 
 == 次の手順 ==
 1. トークンを作る:        $REPO_DIR/packaging/gen-token.sh
-   表示された平文を PC 側の ~/.config/svcscope/token に置き chmod 600 する
-2. 起動する:              systemctl enable --now svcscope.service
-3. SMART を有効にする:    systemctl enable --now svcscope-smart.timer
-4. サーバ内で確認する:    python -m svcscope.cli --token-file <平文のファイル> snapshot
+   表示された平文を PC 側の ~/.config/dbc/token に置き chmod 600 する
+2. 起動する:              systemctl enable --now dbc.service
+3. SMART を有効にする:    systemctl enable --now dbc-smart.timer
+4. サーバ内で確認する:    python -m dbc.cli --token-file <平文のファイル> snapshot
 5. PC からトンネルを張る: docs/ssh.md を見る
 
-状態の確認: systemctl status svcscope / journalctl -u svcscope -n 50
+状態の確認: systemctl status dbc / journalctl -u dbc -n 50
 EOS

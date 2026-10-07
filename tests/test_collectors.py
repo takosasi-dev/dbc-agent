@@ -16,9 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from svcscope import collectors as col  # noqa: E402
-from svcscope.config import Config  # noqa: E402
-from svcscope.sampler import Sampler, fixture_roots  # noqa: E402
+from dbc import collectors as col  # noqa: E402
+from dbc.config import Config  # noqa: E402
+from dbc.sampler import Sampler, fixture_roots  # noqa: E402
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "arch"
 EXTERNAL_DIR = Path(__file__).parent / "fixtures" / "external"
@@ -146,10 +146,11 @@ def test_units() -> None:
     names = [u["name"] for u in v["units"]]
     # .service だけ。dbus.socket は拾わない。名前順に並ぶ
     assert names == [
-        "NetworkManager.service", "sshd.service",
-        "svcscope.service", "systemd-journald.service",
+        "NetworkManager.service", "dbc.service",
+        "sshd.service", "systemd-journald.service",
     ], names
-    sshd = v["units"][1]
+    # 位置で取ると、unit の名前が変わるたびに並び順で壊れる。名前で引く
+    sshd = next(u for u in v["units"] if u["name"] == "sshd.service")
     assert sshd["memory_bytes"] == 8_388_608, sshd
     # 2000us / 2秒 = 0.1%
     assert sshd["cpu_percent"] == 0.1, sshd
@@ -255,7 +256,7 @@ def test_smart() -> None:
     # 総合判定が不合格なら critical
     with tempfile.TemporaryDirectory() as d:
         root = Path(d)
-        p = root / "run/svcscope/smart.json"
+        p = root / "run/dbc/smart.json"
         p.parent.mkdir(parents=True)
         p.write_text(json.dumps({"ts": 1, "devices": {
             "/dev/sdb": {"smart_status": {"passed": False}}}}), encoding="utf-8")
@@ -265,10 +266,10 @@ def test_smart() -> None:
     # 取得に失敗したデバイスは警告として残す(黙って消さない)
     with tempfile.TemporaryDirectory() as d:
         root = Path(d)
-        p = root / "run/svcscope/smart.json"
+        p = root / "run/dbc/smart.json"
         p.parent.mkdir(parents=True)
         p.write_text(json.dumps({"ts": 1, "devices": {
-            "/dev/sdc": {"svcscope_error": "出力なし"}}}), encoding="utf-8")
+            "/dev/sdc": {"dbc_error": "出力なし"}}}), encoding="utf-8")
         v3 = mk(col.Smart, root).collect(0.0)
         assert len(v3["alerts"]) == 1 and v3["alerts"][0]["severity"] == "warning", v3
 

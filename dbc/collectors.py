@@ -446,7 +446,7 @@ _AVG_SEVERITY = {
 }
 
 # 外へ出るときに名乗る。相手に迷惑をかけたとき辿れるようにしておく
-USER_AGENT = "svcscope/0.1 (+https://github.com/takosasi-dev/svcscope-agent)"
+USER_AGENT = "dbc/0.1 (+https://github.com/takosasi-dev/dbc-agent)"
 FETCH_TIMEOUT_S = 10.0
 
 
@@ -607,7 +607,7 @@ class Smart(Collector):
         alerts = []
         devices = {}
         for dev, info in (data.get("devices") or {}).items():
-            if not isinstance(info, dict) or "svcscope_error" in info:
+            if not isinstance(info, dict) or "dbc_error" in info:
                 alerts.append({"ts": ts, "source": "smart", "severity": "warning",
                                "message": f"{dev}: SMART を取得できませんでした", "unit": dev})
                 continue

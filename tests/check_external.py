@@ -17,8 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from svcscope import collectors as col  # noqa: E402
-from svcscope.config import Config  # noqa: E402
+from dbc import collectors as col  # noqa: E402
+from dbc.config import Config  # noqa: E402
 
 # 実際に叩くので許可リストを開ける。既定の設定では空で、外へ出ない
 ALLOW = [

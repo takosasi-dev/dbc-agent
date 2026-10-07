@@ -20,10 +20,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from jsonschema import Draft202012Validator  # noqa: E402
 
-from svcscope import API_VERSION, server  # noqa: E402
-from svcscope.auth import TokenAuth, hash_token  # noqa: E402
-from svcscope.config import Config  # noqa: E402
-from svcscope.sampler import Sampler, fixture_roots  # noqa: E402
+from dbc import API_VERSION, server  # noqa: E402
+from dbc.auth import TokenAuth, hash_token  # noqa: E402
+from dbc.config import Config  # noqa: E402
+from dbc.sampler import Sampler, fixture_roots  # noqa: E402
 
 ROOT = Path(__file__).parent.parent
 SCHEMA = json.loads((ROOT / "docs/api/v1.schema.json").read_text(encoding="utf-8"))
@@ -161,7 +161,7 @@ def test_errors_match_schema() -> None:
 
 def test_lockout_after_repeated_failures() -> None:
     """連続失敗で締め出し、429 と Retry-After を返す。"""
-    from svcscope.auth import MAX_FAILURES
+    from dbc.auth import MAX_FAILURES
 
     with Agent() as a:
         for _ in range(MAX_FAILURES):

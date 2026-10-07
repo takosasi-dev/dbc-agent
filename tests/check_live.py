@@ -15,8 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from svcscope import collectors as col  # noqa: E402
-from svcscope.config import Config  # noqa: E402
+from dbc import collectors as col  # noqa: E402
+from dbc.config import Config  # noqa: E402
 
 # この環境なら必ず取れるはずのもの。取れなければパーサ側の問題
 MUST_WORK = {"cpu", "memory", "disk_io", "net"}

@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "svcscope-agent"
+name = "dbc-agent"
 version = "0.1.0"
 description = "Linux サーバの systemd unit 単位の負荷と待たされ率を集めるエージェント"
 readme = "README.md"
@@ -17,12 +17,12 @@ dependencies = []
 dev = ["jsonschema>=4.0"]
 
 [project.scripts]
-svcscope = "svcscope.__main__:main"
-svcscope-cli = "svcscope.cli:main"
+dbc = "dbc.__main__:main"
+dbc-cli = "dbc.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/takosasi-dev/svcscope-agent"
-"API spec" = "https://github.com/takosasi-dev/svcscope-agent/tree/main/docs/api"
+Homepage = "https://github.com/takosasi-dev/dbc-agent"
+"API spec" = "https://github.com/takosasi-dev/dbc-agent/tree/main/docs/api"
 
 [tool.setuptools]
-packages = ["svcscope"]
+packages = ["dbc"]

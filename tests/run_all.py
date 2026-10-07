@@ -15,17 +15,17 @@ sys.path.insert(0, str(ROOT))
 
 # 読み込むと標準出力が UTF-8 になる。Windows の既定のコードページでは
 # 日本語を print した時点で落ちるため
-import svcscope  # noqa: E402,F401
+import dbc  # noqa: E402,F401
 
 # モジュール自身の自己検査。`python -m <名前>` で走る
 SELF_CHECKS = [
-    ["-m", "svcscope.ring"],
-    ["-m", "svcscope.auth"],
-    ["-m", "svcscope.config"],
-    ["-m", "svcscope.collectors"],
-    ["-m", "svcscope.sampler"],
-    ["-m", "svcscope.server"],
-    ["-m", "svcscope.cli", "--self-check"],
+    ["-m", "dbc.ring"],
+    ["-m", "dbc.auth"],
+    ["-m", "dbc.config"],
+    ["-m", "dbc.collectors"],
+    ["-m", "dbc.sampler"],
+    ["-m", "dbc.server"],
+    ["-m", "dbc.cli", "--self-check"],
 ]
 
 TEST_FILES = [

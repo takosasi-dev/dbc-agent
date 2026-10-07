@@ -78,24 +78,24 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18765/version
 
 ## 4. CUI で見る
 
-トークンの平文は PC 側だけに置く。`~/.config/svcscope/token` に1行で書き、
+トークンの平文は PC 側だけに置く。`~/.config/dbc/token` に1行で書き、
 自分以外が読めないようにする(Linux なら `chmod 600`)。
 
 ```
 # 1回だけ見る
-python -m svcscope.cli --url http://127.0.0.1:18765 snapshot
+python -m dbc.cli --url http://127.0.0.1:18765 snapshot
 
 # 2秒ごとに上書き表示(Ctrl-C で止める)
-python -m svcscope.cli --url http://127.0.0.1:18765 watch
+python -m dbc.cli --url http://127.0.0.1:18765 watch
 
 # そのままの JSON
-python -m svcscope.cli --url http://127.0.0.1:18765 --json snapshot
+python -m dbc.cli --url http://127.0.0.1:18765 --json snapshot
 ```
 
 サーバに ssh で入ってそのまま叩くなら、トンネルは要らない。
 
 ```
-python -m svcscope.cli --token-file ~/svcscope-token snapshot
+python -m dbc.cli --token-file ~/dbc-token snapshot
 ```
 
 ## 5. つながらないときの順番
@@ -106,7 +106,7 @@ python -m svcscope.cli --token-file ~/svcscope-token snapshot
      `authorized_keys` の `permitopen` がエージェントのポートと一致しているか
 3. サーバ内で `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/version`
    が `401` を返すか(エージェントが動いているか)
-4. `systemctl status svcscope` と `journalctl -u svcscope -n 50`
+4. `systemctl status dbc` と `journalctl -u dbc -n 50`
 5. トークンの平文とサーバ側のハッシュが対応しているか
    → 合わないときは `gen-token.sh` で作り直し、両方入れ替える
 

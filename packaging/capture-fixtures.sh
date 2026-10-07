@@ -65,7 +65,7 @@ cat <<EOS
 
 確認:
   python tests/test_collectors.py        # 模擬データでの検証
-  python -m svcscope --fixtures $OUT --token-hash <hash> --port 18765
+  python -m dbc --fixtures $OUT --token-hash <hash> --port 18765
 
 公開前に中身を見てください。マウント先のパス・サービス名・ホスト名が
 入っていないか、個人情報が混ざっていないかを確かめてからコミットします。

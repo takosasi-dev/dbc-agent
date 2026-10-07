@@ -1,6 +1,6 @@
-# SvcScope API v1
+# DBC API v1
 
-**このディレクトリが API 仕様の正本。** GUI 側のリポジトリ(`svcscope-gui`)は
+**このディレクトリが API 仕様の正本。** GUI 側のリポジトリ(`dbc-gui`)は
 コードを共有せず、ここだけを見て実装する。スキーマの機械可読版は
 [`v1.schema.json`](v1.schema.json)(JSON Schema draft 2020-12)。
 

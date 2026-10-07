@@ -1,18 +1,18 @@
 [Unit]
-Description=SvcScope agent (systemd unit 単位の負荷と待たされ率を集める)
-Documentation=https://github.com/takosasi-dev/svcscope-agent
+Description=DBC agent (systemd unit 単位の負荷と待たされ率を集める)
+Documentation=https://github.com/takosasi-dev/dbc-agent
 After=network.target
 
 [Service]
 Type=exec
 # root では動かさない。専用の非特権ユーザで動かす
-User=svcscope
-Group=svcscope
+User=dbc
+Group=dbc
 # journald を読むのに要る(v0.1 の次段で journal collector を足したときに効く)
 SupplementaryGroups=systemd-journal
 
-WorkingDirectory=/opt/svcscope/current
-ExecStart=/usr/bin/python -m svcscope --config /etc/svcscope/config.toml
+WorkingDirectory=/opt/dbc/current
+ExecStart=/usr/bin/python -m dbc --config /etc/dbc/config.toml
 Restart=on-failure
 RestartSec=5s
 
@@ -39,7 +39,7 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 SystemCallFilter=@system-service
 SystemCallErrorNumber=EPERM
 # 設定とトークンのハッシュは読むだけ
-ReadOnlyPaths=/etc/svcscope
+ReadOnlyPaths=/etc/dbc
 # Python プロトタイプの目標は 80MB。超えたら殺して気づけるようにする
 MemoryMax=150M
 # 監視が監視対象を押しのけないように、優先度を下げる
@@ -50,7 +50,7 @@ CPUWeight=20
 # ログは標準出力から journald へ。ディスクに自前のログは書かない
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=svcscope
+SyslogIdentifier=dbc
 
 [Install]
 WantedBy=multi-user.target

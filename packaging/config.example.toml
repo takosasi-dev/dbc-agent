@@ -1,5 +1,5 @@
-# このファイルは /etc/svcscope/config.toml に置く。
-# 書き換えたら systemctl restart svcscope が必要。
+# このファイルは /etc/dbc/config.toml に置く。
+# 書き換えたら systemctl restart dbc が必要。
 
 # 待ち受け先。ループバックか、明示した VPN インターフェースの IP だけ。
 # 0.0.0.0 を書くとエージェントは起動を拒否する(仕様書「認証とセキュリティ」)。
@@ -9,14 +9,14 @@ port = 8765
 
 # トークンの SHA-256 を1行で書いたファイル。平文は置かない。
 # packaging/gen-token.sh が作る。
-token_hash_file = "/etc/svcscope/token.sha256"
+token_hash_file = "/etc/dbc/token.sha256"
 
 # 収集元のルート。実機では "/" のまま。
 # テストで /proc の写しを読ませるときだけ差し替える。
 root = "/"
 
 # SMART の結果。root 権限の別 timer が書いたものを読むだけ。
-smart_file = "/run/svcscope/smart.json"
+smart_file = "/run/dbc/smart.json"
 
 # 外部 API の取得先の許可リスト。ここに無い URL は叩かない。
 # 登録不要・無料のものに限る。v0.1 の次段で使う。

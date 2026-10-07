@@ -13,7 +13,7 @@ from . import collectors as col
 from .config import Config
 from .ring import Ring
 
-log = logging.getLogger("svcscope.sampler")
+log = logging.getLogger("dbc.sampler")
 
 TICK_S = 1.0
 GLOBAL_INTERVAL_S = 2.0

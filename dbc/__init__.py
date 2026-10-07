@@ -1,4 +1,4 @@
-"""SvcScope エージェント。
+"""DBC エージェント。
 
 Linux サーバの systemd unit 単位の負荷を集めて HTTP API で返す常駐プロセス。
 GUI とはこの API だけで結ぶ(仕様書「リポジトリ構成」: 共有コードを持たない)。

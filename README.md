@@ -1,9 +1,9 @@
-# SvcScope (agent)
+# DBC (agent)
 
 Linux サーバの **systemd unit 単位**の負荷と、**待たされ率(PSI)** を集めて
 HTTP API で返す常駐エージェント。サーバ側のリポジトリ。
 
-PC 側(GUI)は別リポジトリ: [svcscope-gui](https://github.com/takosasi-dev/svcscope-gui)。
+PC 側(GUI)は別リポジトリ: [dbc-gui](https://github.com/takosasi-dev/dbc-gui)。
 2つはコードを共有せず、[API 仕様](docs/api/README.md) だけで結ぶ。
 
 > 開発中(v0.1 に向けて)。実機での常駐テストは未了。
@@ -53,20 +53,20 @@ URL だけが対象で、空のままなら脆弱性とニュースの collector
 サーバで root で。
 
 ```sh
-git clone https://github.com/takosasi-dev/svcscope-agent.git
-cd svcscope-agent
+git clone https://github.com/takosasi-dev/dbc-agent.git
+cd dbc-agent
 sudo ./packaging/setup.sh          # 前提を確認し、専用ユーザと systemd unit を入れる
 sudo ./packaging/gen-token.sh      # トークンを作る。平文は1回だけ表示される
-sudo systemctl enable --now svcscope.service
-sudo systemctl enable --now svcscope-smart.timer   # SMART を見る場合
+sudo systemctl enable --now dbc.service
+sudo systemctl enable --now dbc-smart.timer   # SMART を見る場合
 ```
 
 `setup.sh` は cgroup のバージョン、PSI の有無、`sshd` の
 `AllowTcpForwarding`、`smartctl` の有無をその場で確かめて表示する。
 
-エージェントは **root では動かない**。専用の非特権ユーザ `svcscope` で動き、
+エージェントは **root では動かない**。専用の非特権ユーザ `dbc` で動き、
 systemd 側で `ProtectSystem=strict` などを掛けてある。SMART だけは root が
-要るので、別の timer が10分ごとに結果を `/run/svcscope/smart.json` に置き、
+要るので、別の timer が10分ごとに結果を `/run/dbc/smart.json` に置き、
 エージェントはそれを読むだけにしている。
 
 ## 使う
@@ -74,13 +74,13 @@ systemd 側で `ProtectSystem=strict` などを掛けてある。SMART だけは
 ### サーバの中から
 
 ```sh
-python -m svcscope.cli --token-file ~/svcscope-token snapshot   # 1回だけ
-python -m svcscope.cli --token-file ~/svcscope-token watch      # 2秒ごとに上書き表示
-python -m svcscope.cli --token-file ~/svcscope-token --json health
+python -m dbc.cli --token-file ~/dbc-token snapshot   # 1回だけ
+python -m dbc.cli --token-file ~/dbc-token watch      # 2秒ごとに上書き表示
+python -m dbc.cli --token-file ~/dbc-token --json health
 ```
 
 ```
-SvcScope  http://127.0.0.1:8765  agent 0.1.0  2026-10-07 18:12:04
+DBC  http://127.0.0.1:8765  agent 0.1.0  2026-10-07 18:12:04
 
 CPU    12.5%   load 0.42 / 0.31 / 0.25   (4 cores)
 MEM   1.6G / 3.8G (41%)   swap 97.7M / 1.9G   zram 1.1G->435.6M
@@ -103,12 +103,12 @@ collectors  すべて ok
 
 ```sh
 ssh -N -L 127.0.0.1:18765:127.0.0.1:8765 arch-tunnel
-python -m svcscope.cli --url http://127.0.0.1:18765 watch
+python -m dbc.cli --url http://127.0.0.1:18765 watch
 ```
 
 ## 設定
 
-`/etc/svcscope/config.toml`。雛形は
+`/etc/dbc/config.toml`。雛形は
 [packaging/config.example.toml](packaging/config.example.toml)。
 
 待ち受け先はループバックか、明示した VPN インターフェースの IP だけ。
@@ -144,7 +144,7 @@ Linux の無い機械でも API を立てられる。`/proc` の写しを読む 
 
 ```sh
 python tests/make_fixtures.py
-python -m svcscope --fixtures tests/fixtures/arch --port 18765 \
+python -m dbc --fixtures tests/fixtures/arch --port 18765 \
   --token-hash $(python -c "import hashlib;print(hashlib.sha256(b'...').hexdigest())")
 ```
 
@@ -159,11 +159,11 @@ fixture モードは写しが2枚で一巡するため、差分で出す項目(C
 
 | ファイル | 役割 |
 | --- | --- |
-| `svcscope/collectors.py` | `/proc`・`/sys`・cgroup・journald・外部 API。collector を足すならここ |
-| `svcscope/sampler.py` | 収集ループとリングバッファ。スレッドは1本だけ |
-| `svcscope/server.py` | HTTP API |
-| `svcscope/auth.py` | トークンの照合(定数時間比較、連続失敗で締め出し) |
-| `svcscope/cli.py` | CUI クライアント。API だけを見る |
+| `dbc/collectors.py` | `/proc`・`/sys`・cgroup・journald・外部 API。collector を足すならここ |
+| `dbc/sampler.py` | 収集ループとリングバッファ。スレッドは1本だけ |
+| `dbc/server.py` | HTTP API |
+| `dbc/auth.py` | トークンの照合(定数時間比較、連続失敗で締め出し) |
+| `dbc/cli.py` | CUI クライアント。API だけを見る |
 | `docs/api/` | **API 仕様の正本。** GUI 側はここだけを見る |
 
 ## ライセンス

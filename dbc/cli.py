@@ -1,7 +1,7 @@
 """CUI クライアント。
 
-    python -m svcscope.cli watch
-    python -m svcscope.cli --url http://127.0.0.1:18765 snapshot
+    python -m dbc.cli watch
+    python -m dbc.cli --url http://127.0.0.1:18765 snapshot
 
 GUI を立ち上げずに値を見るための口。ssh で入ってそのまま叩けるので、
 「PC から ssh 越しにデータが取れているか」の確認はこれでやる。
@@ -19,7 +19,7 @@ from pathlib import Path
 
 DEFAULT_URL = "http://127.0.0.1:8765"
 # PC 側のトークン置き場。権限 600 を自分で守る前提(仕様書「認証とセキュリティ」)
-DEFAULT_TOKEN_FILE = Path.home() / ".config" / "svcscope" / "token"
+DEFAULT_TOKEN_FILE = Path.home() / ".config" / "dbc" / "token"
 TIMEOUT_S = 10.0
 
 CLEAR = "\033[H\033[2J"
@@ -62,7 +62,7 @@ def render(snap: dict, url: str, version: dict | None = None) -> str:
     """snapshot を1画面ぶんの文字列にする。"""
     out = []
     stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(snap.get("ts", 0) / 1000))
-    head = f"SvcScope  {url}"
+    head = f"DBC  {url}"
     if version:
         head += f"  agent {version.get('agent_version', '?')}"
     out.append(f"{head}  {stamp}")
@@ -181,14 +181,14 @@ def load_token(path: Path | None) -> str:
     """
     if path is not None:
         return _read_token(path)
-    env = os.environ.get("SVCSCOPE_TOKEN")
+    env = os.environ.get("DBC_TOKEN")
     if env:
         return env.strip()
     if DEFAULT_TOKEN_FILE.exists():
         return _read_token(DEFAULT_TOKEN_FILE)
     raise CliError(
         f"トークンが見つかりません。{DEFAULT_TOKEN_FILE} に置くか、"
-        "--token-file か環境変数 SVCSCOPE_TOKEN で渡してください"
+        "--token-file か環境変数 DBC_TOKEN で渡してください"
     )
 
 
@@ -224,8 +224,8 @@ def _watch(client: Client, version: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="svcscope-cli", description="SvcScope の CUI クライアント")
-    p.add_argument("--url", default=os.environ.get("SVCSCOPE_URL", DEFAULT_URL),
+    p = argparse.ArgumentParser(prog="dbc-cli", description="DBC の CUI クライアント")
+    p.add_argument("--url", default=os.environ.get("DBC_URL", DEFAULT_URL),
                    help=f"エージェントの URL(既定: {DEFAULT_URL})")
     p.add_argument("--token-file", type=Path, default=None,
                    help=f"トークンを書いたファイル(既定: {DEFAULT_TOKEN_FILE})")

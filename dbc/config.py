@@ -7,7 +7,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFAULT_PATH = Path("/etc/svcscope/config.toml")
+DEFAULT_PATH = Path("/etc/dbc/config.toml")
 
 # 待ち受けを許すアドレス。ループバックか、明示した VPN インターフェースの IP だけ。
 # 0.0.0.0 を書かれたら起動を拒否する(仕様書「認証とセキュリティ」バインド制限)。
@@ -22,12 +22,12 @@ class ConfigError(Exception):
 class Config:
     bind: str = "127.0.0.1"
     port: int = 8765
-    token_hash_file: Path = Path("/etc/svcscope/token.sha256")
+    token_hash_file: Path = Path("/etc/dbc/token.sha256")
     # 収集元のルート。fixture でパーサを検証するときに差し替える。
     # 開発機に WSL が無くてもテストが回るようにするための逃げ道。
     root: Path = Path("/")
     # SMART は root 権限が要るので別の timer が書いた結果を読むだけにする。
-    smart_file: Path = Path("/run/svcscope/smart.json")
+    smart_file: Path = Path("/run/dbc/smart.json")
     # 外部 API の取得先。許可リストに無い URL は叩かない。
     external_allow: list[str] = field(default_factory=list)
 
@@ -61,7 +61,7 @@ def load(path: Path | None = None) -> Config:
 def demo() -> None:
     import tempfile
 
-    assert load(Path("/nonexistent/svcscope.toml")).bind == "127.0.0.1"
+    assert load(Path("/nonexistent/dbc.toml")).bind == "127.0.0.1"
 
     for bad in ("0.0.0.0", "::", ""):
         try:

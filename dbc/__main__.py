@@ -1,9 +1,9 @@
 """エージェントの入口。
 
-    python -m svcscope                       # /etc/svcscope/config.toml で起動
-    python -m svcscope --fixtures tests/fixtures/arch --token-hash <hash>
+    python -m dbc                       # /etc/dbc/config.toml で起動
+    python -m dbc --fixtures tests/fixtures/arch --token-hash <hash>
 
-systemd からは前者の形で起動する(packaging/svcscope.service)。
+systemd からは前者の形で起動する(packaging/dbc.service)。
 """
 
 import argparse
@@ -17,11 +17,11 @@ from . import __version__, config as cfgmod, server
 from .auth import TokenAuth, first_line
 from .sampler import Sampler, fixture_roots
 
-log = logging.getLogger("svcscope")
+log = logging.getLogger("dbc")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(prog="svcscope", description="SvcScope エージェント")
+    p = argparse.ArgumentParser(prog="dbc", description="DBC エージェント")
     p.add_argument("--version", action="version", version=__version__)
     p.add_argument("--config", type=Path, default=None,
                    help=f"設定ファイル(既定: {cfgmod.DEFAULT_PATH})")

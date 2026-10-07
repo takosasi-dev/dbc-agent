@@ -20,7 +20,7 @@ from .auth import AuthError, TokenAuth
 from .config import Config
 from .sampler import Sampler, now_ms
 
-log = logging.getLogger("svcscope.server")
+log = logging.getLogger("dbc.server")
 
 # 仕様書「性能要件」同時接続数: 4まで(個人利用)。
 # SSE は1本につきスレッドを1つ占めるので、ここで止めないと
@@ -34,7 +34,7 @@ FEATURES = ["snapshot", "history", "units", "alerts", "health", "stream"]
 
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = f"svcscope/{__version__}"
+    server_version = f"dbc/{__version__}"
     sys_version = ""  # Python の版を外に出さない
 
     # ThreadingHTTPServer が属性としてぶら下げる

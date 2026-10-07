@@ -26,7 +26,7 @@
   - 履歴はメモリ上のリングバッファだけ(全体 2秒 × 900点、unit 5秒 × 360点)。
     ディスクには書かない。
   - `bind` に `0.0.0.0` が指定されたら起動を拒否する。
-- CUI クライアント `python -m svcscope.cli`(`snapshot` / `units` / `alerts` /
+- CUI クライアント `python -m dbc.cli`(`snapshot` / `units` / `alerts` /
   `health` / `version` / `watch`)。API だけを見て動く。
 - API 仕様の正本 `docs/api/`(JSON Schema draft 2020-12)と契約テスト。
 - fixture モード(`--fixtures`)。`/proc` の写しから読むので、Linux の無い
@@ -42,6 +42,15 @@
 - `tests/check_external.py`。外部 API を実際に叩いて、今も取れることと
   形が変わっていないかを見る。ネットワークに依存するので `run_all.py` には
   入れていない。
+
+### Changed
+
+- プロジェクト名を **DBC** に決め、仮称 SvcScope から改名した。リポジトリ名・
+  Python パッケージ・systemd unit・`/etc` と `/run` と `/opt` のパス・専用ユーザ・
+  環境変数(`DBC_TOKEN` ほか)をすべて揃えた。GitHub は旧名から転送されるが、
+  リンクは新しい名前に貼り替えること。
+- 模擬データの生成器が、作り直す前に古い写しを消すようにした。上書きしかしていなかったので、unit 名を変えたときに前の名前の
+  写しが残ってテストが落ちた。
 
 ### Fixed
 

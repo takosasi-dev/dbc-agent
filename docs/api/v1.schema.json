@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/takosasi-dev/svcscope-agent/main/docs/api/v1.schema.json",
-  "title": "SvcScope API v1",
+  "$id": "https://raw.githubusercontent.com/takosasi-dev/dbc-agent/main/docs/api/v1.schema.json",
+  "title": "DBC API v1",
   "description": "このファイルが API 仕様の正本。GUI 側のリポジトリはここを参照し、同じスキーマで契約テストを通す。v1 の中では項目の追加だけを許すため、どの応答も additionalProperties を閉じない。",
   "$defs": {
     "ts": {

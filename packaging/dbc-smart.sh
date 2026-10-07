@@ -1,18 +1,18 @@
 #!/bin/sh
-# SMART の値を /run/svcscope/smart.json に書く。root で動く systemd timer から呼ぶ。
+# SMART の値を /run/dbc/smart.json に書く。root で動く systemd timer から呼ぶ。
 #
 # エージェント本体に root を持たせないための中継。エージェントはこのファイルを
 # 読むだけで、sudo も smartctl も呼ばない(仕様書「認証とセキュリティ」)。
 # /run は tmpfs なので HDD への書き込みも増えない。
 set -eu
 
-OUT_DIR=/run/svcscope
+OUT_DIR=/run/dbc
 OUT="$OUT_DIR/smart.json"
 TMP="$OUT_DIR/.smart.json.$$"
-OWNER=svcscope
+OWNER=dbc
 
 # 対象デバイス。未指定なら /sys/block から回転・固定ディスクだけ拾う
-DEVICES="${SVCSCOPE_SMART_DEVICES:-}"
+DEVICES="${DBC_SMART_DEVICES:-}"
 if [ -z "$DEVICES" ]; then
   for d in /sys/block/*; do
     name=$(basename "$d")
@@ -42,7 +42,7 @@ for dev in $DEVICES; do
   if [ -n "$out" ]; then
     printf '%s' "$out" >> "$TMP"
   else
-    printf '{"svcscope_error": "smartctl が出力を返しませんでした"}' >> "$TMP"
+    printf '{"dbc_error": "smartctl が出力を返しませんでした"}' >> "$TMP"
   fi
 done
 printf '\n  }\n}\n' >> "$TMP"

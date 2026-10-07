@@ -6,7 +6,7 @@
 # 平文は PC 側の権限 600 のファイルに置く。
 set -eu
 
-HASH_FILE=/etc/svcscope/token.sha256
+HASH_FILE=/etc/dbc/token.sha256
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "root で実行してください" >&2
@@ -29,18 +29,18 @@ fi
 # 末尾の改行を含めない。エージェント側も改行を取り除いてから照合する
 HASH=$(printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1)
 
-install -d -m 0750 /etc/svcscope
+install -d -m 0750 /etc/dbc
 umask 027
 printf '%s\n' "$HASH" > "$HASH_FILE"
 chmod 0640 "$HASH_FILE"
 # エージェントのユーザが読めるように。まだ居なければ root のままでよい
-chown root:svcscope "$HASH_FILE" 2>/dev/null || true
+chown root:dbc "$HASH_FILE" 2>/dev/null || true
 
 cat <<'EOS'
 
 --------------------------------------------------------------------
 PC 側に設定するトークンは次の1行です。この画面を閉じると二度と出ません。
-PC 側では ~/.config/svcscope/token に置き、chmod 600 してください。
+PC 側では ~/.config/dbc/token に置き、chmod 600 してください。
 --------------------------------------------------------------------
 EOS
 printf '%s\n' "$TOKEN"
