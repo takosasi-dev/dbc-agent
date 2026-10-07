@@ -159,6 +159,10 @@ class DiskIo(Collector):
     name = "disk_io"
     interval = 2.0
     _SECTOR = 512
+    # 中身のない仮想デバイス。/sys/block には居るが、見ても意味がない。
+    # WSL の Arch では loop0-7 と ram0-15 が並ぶので、これを外さないと
+    # 一覧が 24 行の 0 で埋まる。zram と dm-/md は実際の I/O なので残す。
+    _SKIP_PREFIX = ("loop", "ram", "sr")
 
     def __init__(self, config):
         super().__init__(config)
@@ -175,9 +179,11 @@ class DiskIo(Collector):
             if len(f) < 14:
                 continue
             name = f[2]
-            # パーティションや loop を除くため、/sys/block に居るものだけ見る。
+            # パーティションを除くため、/sys/block に居るものだけ見る。
             # 名前の末尾が数字かどうかで判定すると nvme0n1 を落としてしまう。
             if not (self.root / "sys/block" / name).exists():
+                continue
+            if name.startswith(self._SKIP_PREFIX):
                 continue
             out[name] = (int(f[5]), int(f[9]), int(f[12]))
         return out
@@ -213,10 +219,16 @@ class DiskUsage(Collector):
     interval = 60.0
     # 実体を持たない、または容量を見ても意味がないファイルシステム
     _SKIP = {
+        # カーネルが見せているだけのもの
         "proc", "sysfs", "devtmpfs", "devpts", "tmpfs", "cgroup", "cgroup2",
         "securityfs", "pstore", "bpf", "autofs", "hugetlbfs", "mqueue",
         "debugfs", "tracefs", "configfs", "fusectl", "ramfs", "squashfs",
         "efivarfs", "binfmt_misc", "nsfs", "overlay",
+        "rootfs", "initramfs", "initrd",
+        # このサーバのディスクではないもの。容量を足すと二重に数えるうえ、
+        # 「サーバが満杯」と誤読させる。WSL では /mnt/c などが 9p で見えた
+        "9p", "drvfs", "virtiofs", "cifs", "smbfs", "smb3",
+        "nfs", "nfs4", "sshfs", "fuse.sshfs", "fuse.rclone", "afs",
     }
 
     def probe(self) -> None:

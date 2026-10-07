@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.11 は tomllib が入った版(下限)。3.13 は Arch が今配っている版に近い
-        python: ["3.11", "3.13"]
+        # 3.11 は tomllib が入った版(下限)。3.14 は Arch が今配っている版
+        python: ["3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 

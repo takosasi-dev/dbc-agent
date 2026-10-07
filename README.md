@@ -118,7 +118,14 @@ python -m svcscope.cli --url http://127.0.0.1:18765 watch
 
 ## 開発
 
-開発は PC 側で行う。サーバ上ではビルドしない。
+開発は PC 側で行う。サーバ上ではビルドしない。Linux が要る確認は WSL2 の
+Arch で足りる(`wsl --install -d archlinux`)。実機に近い範囲まで試せる。
+
+| WSL2 の Arch で | |
+| --- | --- |
+| 取れる | cgroup v2、PSI、systemd と journald、pacman。collector 8本が ok になる |
+| 取れない | SMART(実ディスクが無いので smartctl は失敗を返す)、zram |
+| 注意 | `/mnt/c` などが 9p で見えるので、容量の一覧から外してある |
 
 ```sh
 python tests/run_all.py            # 全部(どの OS でも動く)

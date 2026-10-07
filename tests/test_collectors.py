@@ -176,6 +176,33 @@ def test_disk_usage_unsupported_on_fixture() -> None:
         raise AssertionError("fixture で disk_usage が probe を通った")
 
 
+def test_disk_usage_skips_remote_and_virtual() -> None:
+    """このサーバのディスクでないものを容量に混ぜない。
+
+    WSL では /mnt/c などが 9p で見え、Windows 側の 930GB が
+    「サーバのディスク」として出てしまった。
+    """
+    skip = col.DiskUsage._SKIP
+    for fstype in ("9p", "drvfs", "nfs", "nfs4", "cifs", "sshfs", "tmpfs", "overlay"):
+        assert fstype in skip, fstype
+    # 本物のディスクは落とさない
+    for fstype in ("ext4", "btrfs", "xfs", "vfat", "f2fs", "zfs"):
+        assert fstype not in skip, fstype
+
+
+def test_disk_io_skips_virtual_devices() -> None:
+    """loop と ram を実ディスクとして数えない。
+
+    WSL の /sys/block には loop0-7 と ram0-15 が居るので、
+    これを外さないと一覧が 0 の行で埋まる。
+    """
+    c = col.DiskIo
+    for name in ("loop0", "ram15", "sr0"):
+        assert name.startswith(c._SKIP_PREFIX), name
+    for name in ("sda", "nvme0n1", "zram0", "dm-0", "md0", "vda"):
+        assert not name.startswith(c._SKIP_PREFIX), name
+
+
 # --- 異常検知 ---
 
 def test_journal() -> None:
