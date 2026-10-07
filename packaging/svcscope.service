@@ -1,0 +1,56 @@
+[Unit]
+Description=SvcScope agent (systemd unit 単位の負荷と待たされ率を集める)
+Documentation=https://github.com/takosasi-dev/svcscope-agent
+After=network.target
+
+[Service]
+Type=exec
+# root では動かさない。専用の非特権ユーザで動かす
+User=svcscope
+Group=svcscope
+# journald を読むのに要る(v0.1 の次段で journal collector を足したときに効く)
+SupplementaryGroups=systemd-journal
+
+WorkingDirectory=/opt/svcscope/current
+ExecStart=/usr/bin/python -m svcscope --config /etc/svcscope/config.toml
+Restart=on-failure
+RestartSec=5s
+
+# --- 硬化(仕様書「認証とセキュリティ」unit の硬化) ---
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+# cgroup は読むだけなので、読み取り専用で mount されるこの設定でよい
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+# HTTP と、将来の journal 読み取り(UNIX ソケット)だけ
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# 設定とトークンのハッシュは読むだけ
+ReadOnlyPaths=/etc/svcscope
+# Python プロトタイプの目標は 80MB。超えたら殺して気づけるようにする
+MemoryMax=150M
+# 監視が監視対象を押しのけないように、優先度を下げる
+Nice=5
+IOSchedulingClass=idle
+CPUWeight=20
+
+# ログは標準出力から journald へ。ディスクに自前のログは書かない
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=svcscope
+
+[Install]
+WantedBy=multi-user.target

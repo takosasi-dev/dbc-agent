@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/takosasi-dev/svcscope-agent/main/docs/api/v1.schema.json",
+  "title": "SvcScope API v1",
+  "description": "このファイルが API 仕様の正本。GUI 側のリポジトリはここを参照し、同じスキーマで契約テストを通す。v1 の中では項目の追加だけを許すため、どの応答も additionalProperties を閉じない。",
+  "$defs": {
+    "ts": {
+      "description": "Unix 時刻のミリ秒 (UTC)",
+      "type": "integer",
+      "minimum": 0
+    },
+    "collector_status": {
+      "description": "ok = 新しい値がある / stale = 値が古いか未取得 / unsupported = この環境にデータ源が無い",
+      "enum": ["ok", "stale", "unsupported"]
+    },
+    "collectors": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/collector_status" }
+    },
+    "nonneg": { "type": "number", "minimum": 0 },
+    "bytes": { "type": "integer", "minimum": 0 },
+
+    "cpu": {
+      "type": "object",
+      "required": ["percent", "load1", "load5", "load15", "cores"],
+      "properties": {
+        "percent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "load1": { "$ref": "#/$defs/nonneg" },
+        "load5": { "$ref": "#/$defs/nonneg" },
+        "load15": { "$ref": "#/$defs/nonneg" },
+        "cores": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "memory": {
+      "type": "object",
+      "required": ["total_bytes", "used_bytes", "available_bytes"],
+      "properties": {
+        "total_bytes": { "$ref": "#/$defs/bytes" },
+        "used_bytes": { "$ref": "#/$defs/bytes" },
+        "available_bytes": { "$ref": "#/$defs/bytes" },
+        "cached_bytes": { "$ref": "#/$defs/bytes" },
+        "swap_total_bytes": { "$ref": "#/$defs/bytes" },
+        "swap_used_bytes": { "$ref": "#/$defs/bytes" },
+        "zram": {
+          "description": "zram が無い機械ではキーごと省く",
+          "type": "object",
+          "required": ["orig_data_bytes", "compr_data_bytes", "mem_used_total_bytes"],
+          "properties": {
+            "orig_data_bytes": { "$ref": "#/$defs/bytes" },
+            "compr_data_bytes": { "$ref": "#/$defs/bytes" },
+            "mem_used_total_bytes": { "$ref": "#/$defs/bytes" }
+          }
+        }
+      }
+    },
+
+    "disk": {
+      "type": "object",
+      "properties": {
+        "devices": {
+          "description": "I/O は 2 秒間隔。パーティションではなくディスク 1 本ごと",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["device", "read_bytes_per_sec", "write_bytes_per_sec", "util_percent"],
+            "properties": {
+              "device": { "type": "string", "minLength": 1 },
+              "read_bytes_per_sec": { "$ref": "#/$defs/nonneg" },
+              "write_bytes_per_sec": { "$ref": "#/$defs/nonneg" },
+              "util_percent": { "type": "number", "minimum": 0, "maximum": 100 }
+            }
+          }
+        },
+        "filesystems": {
+          "description": "使用量は 60 秒間隔",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["mount", "total_bytes", "used_bytes"],
+            "properties": {
+              "mount": { "type": "string", "minLength": 1 },
+              "fstype": { "type": "string" },
+              "total_bytes": { "$ref": "#/$defs/bytes" },
+              "used_bytes": { "$ref": "#/$defs/bytes" },
+              "available_bytes": { "$ref": "#/$defs/bytes" }
+            }
+          }
+        }
+      }
+    },
+
+    "net": {
+      "type": "object",
+      "required": ["interfaces"],
+      "properties": {
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "rx_bytes_per_sec", "tx_bytes_per_sec"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "rx_bytes_per_sec": { "$ref": "#/$defs/nonneg" },
+              "tx_bytes_per_sec": { "$ref": "#/$defs/nonneg" }
+            }
+          }
+        }
+      }
+    },
+
+    "psi_scope": {
+      "description": "待たされ率。some = 一部が待たされた時間の割合、full = 全員が待たされた割合。avg10/avg60/avg300 は 10/60/300 秒平均",
+      "type": "object",
+      "properties": {
+        "some_avg10": { "$ref": "#/$defs/nonneg" },
+        "some_avg60": { "$ref": "#/$defs/nonneg" },
+        "some_avg300": { "$ref": "#/$defs/nonneg" },
+        "full_avg10": { "$ref": "#/$defs/nonneg" },
+        "full_avg60": { "$ref": "#/$defs/nonneg" },
+        "full_avg300": { "$ref": "#/$defs/nonneg" }
+      }
+    },
+    "psi": {
+      "type": "object",
+      "properties": {
+        "cpu": { "$ref": "#/$defs/psi_scope" },
+        "memory": { "$ref": "#/$defs/psi_scope" },
+        "io": { "$ref": "#/$defs/psi_scope" }
+      }
+    },
+
+    "unit": {
+      "description": "systemd unit 1 つぶん。cgroup v2 から取る。cpu_percent は 1 コア飽和で 100",
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "pattern": "\\.service$" },
+        "cpu_percent": { "$ref": "#/$defs/nonneg" },
+        "memory_bytes": { "$ref": "#/$defs/bytes" },
+        "io_read_bytes": { "$ref": "#/$defs/bytes" },
+        "io_write_bytes": { "$ref": "#/$defs/bytes" }
+      }
+    },
+    "unit_list": { "type": "array", "items": { "$ref": "#/$defs/unit" } },
+
+    "alert": {
+      "type": "object",
+      "required": ["source", "severity", "message", "ts"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "source": { "enum": ["journal", "smart", "security", "eol"] },
+        "severity": { "enum": ["info", "warning", "error", "critical"] },
+        "message": { "type": "string" },
+        "unit": { "type": "string" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "version": {
+      "description": "GET /version。版に依存しない固定パス。認証は免除しない",
+      "type": "object",
+      "required": ["agent_version", "api_version", "features"],
+      "properties": {
+        "agent_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+" },
+        "api_version": { "type": "integer", "minimum": 1 },
+        "features": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "snapshot": {
+      "description": "GET /api/v1/snapshot。取れていない項目はキーごと省く。collectors で理由が分かる",
+      "type": "object",
+      "required": ["ts", "collectors"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "cpu": { "$ref": "#/$defs/cpu" },
+        "memory": { "$ref": "#/$defs/memory" },
+        "disk": { "$ref": "#/$defs/disk" },
+        "net": { "$ref": "#/$defs/net" },
+        "psi": { "$ref": "#/$defs/psi" },
+        "units": { "$ref": "#/$defs/unit_list" },
+        "collectors": { "$ref": "#/$defs/collectors" }
+      }
+    },
+
+    "history_point": {
+      "description": "履歴の 1 点。snapshot から units を除いたもの",
+      "type": "object",
+      "required": ["ts", "collectors"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "cpu": { "$ref": "#/$defs/cpu" },
+        "memory": { "$ref": "#/$defs/memory" },
+        "disk": { "$ref": "#/$defs/disk" },
+        "net": { "$ref": "#/$defs/net" },
+        "psi": { "$ref": "#/$defs/psi" },
+        "collectors": { "$ref": "#/$defs/collectors" }
+      }
+    },
+
+    "history": {
+      "description": "GET /api/v1/history?since=<ms>。since は境界を含まない",
+      "type": "object",
+      "required": ["ts", "points", "unit_points"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "since": { "type": ["integer", "null"] },
+        "points": { "type": "array", "items": { "$ref": "#/$defs/history_point" } },
+        "unit_points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ts", "units"],
+            "properties": {
+              "ts": { "$ref": "#/$defs/ts" },
+              "units": { "$ref": "#/$defs/unit_list" }
+            }
+          }
+        }
+      }
+    },
+
+    "units": {
+      "description": "GET /api/v1/units",
+      "type": "object",
+      "required": ["ts", "units", "collectors"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "units": { "$ref": "#/$defs/unit_list" },
+        "collectors": { "$ref": "#/$defs/collectors" }
+      }
+    },
+
+    "alerts": {
+      "description": "GET /api/v1/alerts",
+      "type": "object",
+      "required": ["ts", "alerts", "collectors"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "alerts": { "type": "array", "items": { "$ref": "#/$defs/alert" } },
+        "collectors": { "$ref": "#/$defs/collectors" }
+      }
+    },
+
+    "health": {
+      "description": "GET /api/v1/health。エージェント自身の状態",
+      "type": "object",
+      "required": ["ts", "collectors"],
+      "properties": {
+        "ts": { "$ref": "#/$defs/ts" },
+        "collectors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["status", "interval_s"],
+            "properties": {
+              "status": { "$ref": "#/$defs/collector_status" },
+              "interval_s": { "$ref": "#/$defs/nonneg" },
+              "age_s": { "type": ["number", "null"] },
+              "detail": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "memory_rss_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "history_points": { "type": "integer", "minimum": 0 },
+        "units_history_points": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "error": {
+      "description": "エラー応答。HTTP ステータスと併せて返す",
+      "type": "object",
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "message": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

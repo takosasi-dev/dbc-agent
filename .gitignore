@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 秘密。リポジトリには平文もハッシュも入れない
+token
+token.sha256
+*.token
+config.toml
+
+# tests/make_fixtures.py が作る模擬データ。生成物なので持たない
+tests/fixtures/arch/
+
+# 実機から取った /proc の写し。マウント先のパスやサービス名が入るので、
+# 中身を確認してから `git add -f tests/fixtures/real` で明示的に入れる
+tests/fixtures/real/
+
+# エディタ・OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

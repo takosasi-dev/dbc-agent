@@ -1,0 +1,13 @@
+# 既定は UTF-8(BOM なし)+ LF。
+# シェルスクリプトと systemd unit は CRLF だと動かないので固定する。
+* text=auto eol=lf
+*.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+*.py text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# 私用側の作業用。公開側の写しには入れない
+tools/ export-ignore

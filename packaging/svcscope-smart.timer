@@ -1,0 +1,12 @@
+[Unit]
+Description=SvcScope: SMART を10分ごとに取る
+
+[Timer]
+# HDD への負荷を避けるため低頻度(仕様書「収集仕様」SMART)
+OnBootSec=2min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

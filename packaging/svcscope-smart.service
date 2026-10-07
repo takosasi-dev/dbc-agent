@@ -1,0 +1,15 @@
+[Unit]
+Description=SvcScope: SMART の値を /run に書き出す
+Documentation=https://github.com/takosasi-dev/svcscope-agent
+
+[Service]
+# smartctl は root 権限が要る。エージェント本体に root を持たせたくないので、
+# これだけを別の oneshot に切り出し、結果を tmpfs 経由で渡す
+# (仕様書「認証とセキュリティ」SMART の取得)
+Type=oneshot
+ExecStart=/opt/svcscope/current/packaging/svcscope-smart.sh
+Nice=10
+IOSchedulingClass=idle
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=svcscope-smart

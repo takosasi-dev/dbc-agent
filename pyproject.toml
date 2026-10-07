@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "svcscope-agent"
+version = "0.1.0"
+description = "Linux サーバの systemd unit 単位の負荷と待たされ率を集めるエージェント"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+# 実行時の依存は無し。常駐メモリの目標(80MB以下)に効くので増やさない。
+dependencies = []
+
+[project.optional-dependencies]
+# 契約テストでスキーマ検証に使うだけ。サーバには入れない。
+dev = ["jsonschema>=4.0"]
+
+[project.scripts]
+svcscope = "svcscope.__main__:main"
+svcscope-cli = "svcscope.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/takosasi-dev/svcscope-agent"
+"API spec" = "https://github.com/takosasi-dev/svcscope-agent/tree/main/docs/api"
+
+[tool.setuptools]
+packages = ["svcscope"]
