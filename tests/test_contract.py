@@ -127,10 +127,16 @@ def test_history_since_is_exclusive() -> None:
         _, narrowed = a.get(f"/api/v1/history?since={last}")
         check("history", narrowed)
         assert narrowed["points"] == []
-        # 1 点前から取れば最後の 1 点だけ返る
+
+        # 1 点前から取れば、それより後の点だけが返る。
+        # ここで「最後の1点だけ」と決め打ちしてはいけない。このテストは
+        # tick をミリ秒未満の間隔で詰めて回すので、点が同じ時刻を持つことが
+        # ある(本番は2秒間隔なので起きない)。境界を含まないことだけを見る。
         prev = all_["points"][-2]["ts"]
         _, tail = a.get(f"/api/v1/history?since={prev}")
-        assert [p["ts"] for p in tail["points"]] == [last], tail["points"]
+        expected = [p["ts"] for p in all_["points"] if p["ts"] > prev]
+        assert [p["ts"] for p in tail["points"]] == expected, (tail["points"], expected)
+        assert all(ts > prev for ts in expected), expected
 
 
 def test_errors_match_schema() -> None:
